@@ -41,7 +41,7 @@ export default function App() {
   async function getData() {
     try {
       setLoading(true);
-      const res = await fetch(`http://ip-api.com/json/${ip}`);
+      const res = await fetch(`https://ip-api.com/json/${ip}`);
       const data = await res.json();
       setIpInfo(data);
       if (ip !== '192.212.174.101') {

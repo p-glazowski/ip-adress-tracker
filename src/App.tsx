@@ -7,48 +7,48 @@ import {
   ZoomControl,
 } from 'react-leaflet';
 import FlyToLocation from './hooks/FlyToLocation';
+import InfoBox from './components/InfoBox';
 
-interface IpInfoProps {
-  query: string;
-  city: string;
-  country: string;
-  lat: number;
-  lon: number;
-  timezone: string;
+export interface IpInfoProps {
+  ip: string;
   isp: string;
+  location: {
+    city: string;
+    region: string;
+    country: string;
+    lat: number;
+    lng: number;
+    timezone: string;
+  };
 }
 
 export default function App() {
   const [ip, setIp] = useState<string>('192.212.174.101');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [ipInfo, setIpInfo] = useState<IpInfoProps | null>(null);
   const position: [number, number] | null = ipInfo
-    ? [ipInfo?.lat, ipInfo?.lon]
+    ? [ipInfo?.location.lat, ipInfo?.location.lng]
     : null;
   const mapRef = useRef<HTMLDivElement>(null);
-
-  function getUtcOffset(timezone: string): string {
-    const date = new Date();
-    const formatter = new Intl.DateTimeFormat('en', {
-      timeZone: timezone,
-      timeZoneName: 'shortOffset', // gives "GMT-7", "GMT+5:30" etc
-    });
-    const parts = formatter.formatToParts(date);
-    const offset = parts.find((p) => p.type === 'timeZoneName')?.value ?? '';
-    return offset.replace('GMT', 'UTC'); // "GMT-7" → "UTC-7"
-  }
 
   async function getData() {
     try {
       setLoading(true);
-      const res = await fetch(`https://ip-api.com/json/${ip}`);
+      setError(false);
+      const res = await fetch(
+        `https://geo.ipify.org/api/v2/country,city?apiKey=${import.meta.env.VITE_IPIFY_API_KEY}&ipAddress=${ip}`,
+      );
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const data = await res.json();
+      if (data.code) throw new Error(data.messages);
       setIpInfo(data);
       if (ip !== '192.212.174.101') {
         mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     } catch (err) {
-      console.error(err);
+      setError(true);
+      console.error('This is error:', err);
     } finally {
       setLoading(false);
     }
@@ -62,45 +62,7 @@ export default function App() {
     <div className="flex flex-col min-h-screen">
       <header className="h-70 p-5 flex flex-col gap-5 text-center relative">
         {/* INFO BOX */}
-        <div
-          ref={mapRef}
-          className="absolute top-40 left-5 right-5 min-h-60 rounded-md shadow-xs shadow-black bg-white p-5 flex flex-col gap-6 z-50 lg:flex-row lg:items-center lg:justify-center lg:min-h-40 lg:gap-10"
-        >
-          {!loading ? (
-            <>
-              <div className="lg:border-r-2 lg:pr-10 border-gray-400/30">
-                <h2 className="font-bold text-gray-400 uppercase text-[0.65rem]">
-                  ip address
-                </h2>
-                <p className="font-bold text-xl">{ipInfo?.query}</p>
-              </div>
-              <div className="lg:border-r-2 lg:pr-10 border-gray-400/30">
-                <h2 className="font-bold text-gray-400 uppercase text-[0.65rem]">
-                  location
-                </h2>
-                <p className="font-bold text-xl">
-                  {ipInfo?.city}, {ipInfo?.country}
-                </p>
-              </div>
-              <div className="lg:border-r-2 lg:pr-10 border-gray-400/30">
-                <h2 className="font-bold text-gray-400 uppercase text-[0.65rem]">
-                  timezone
-                </h2>
-                <p className="font-bold text-xl">
-                  {!ipInfo ? 'Loading...' : getUtcOffset(ipInfo?.timezone)}
-                </p>
-              </div>
-              <div>
-                <h2 className="font-bold text-gray-400 uppercase text-[0.65rem]">
-                  ISP
-                </h2>
-                <p className="font-bold text-xl">{ipInfo?.isp}</p>
-              </div>
-            </>
-          ) : (
-            <div className="text-xl font-bold">Loading...</div>
-          )}
-        </div>
+        {!loading && !error && <InfoBox ipInfo={ipInfo} mapRef={mapRef} />}
         <h1 className="text-2xl text-white">IP Address Tracker</h1>
         <label htmlFor="ip">
           <div className="flex shadow shadow-black rounded-r-md max-w-200 mx-auto">
@@ -127,31 +89,40 @@ export default function App() {
           </p>
         </label>
       </header>
-      <main className="flex-1 z-10">
-        <div className="h-150">
-          <MapContainer
-            center={position ? position : [20, 0]}
-            zoom={13}
-            zoomControl={false}
-            scrollWheelZoom={false}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <ZoomControl position="bottomright" />
-            {position && <FlyToLocation position={position} />}
-            {position && (
-              <Marker position={position}>
-                <Popup>
-                  {ipInfo?.city} <br /> {ipInfo?.country}
-                </Popup>
-              </Marker>
-            )}
-          </MapContainer>
-        </div>
+
+      <main className="flex-1 z-10 bg-white">
+        {error && (
+          <p className="text-center pt-10 lg:pt-20">
+            Cannot fetch data try again later! :(
+          </p>
+        )}
+        {!error && (
+          <div className="h-150">
+            <MapContainer
+              center={position ? position : [20, 0]}
+              zoom={13}
+              zoomControl={false}
+              scrollWheelZoom={false}
+              style={{ height: '100%', width: '100%' }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <ZoomControl position="bottomright" />
+              {position && <FlyToLocation position={position} />}
+              {position && (
+                <Marker position={position}>
+                  <Popup>
+                    {ipInfo?.location.city} <br /> {ipInfo?.location.country}
+                  </Popup>
+                </Marker>
+              )}
+            </MapContainer>
+          </div>
+        )}
       </main>
+
       <footer className="justify-center p-2 text-white flex gap-1">
         <a
           href="https://www.github.com/p-glazowski"

@@ -84,7 +84,7 @@ export default function App() {
               {'>'}
             </button>
           </div>
-          <p className="text-white mt-1.5 text-sm">
+          <p className="text-white mt-1.5 text-xs">
             If you click search with empty input, you will get your IP
           </p>
         </label>

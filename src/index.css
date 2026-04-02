@@ -19,6 +19,6 @@ footer {
 @media (width > 1000px) {
   header,
   footer {
-    background-image: url('pattern-bg-desktop.png');
+    background-image: url('/pattern-bg-desktop.png');
   }
 }
